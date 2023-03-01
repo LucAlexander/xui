@@ -1,0 +1,12 @@
+#ifndef USER_COMPONENTS_H
+#define USER_COMPONENTS_H
+
+#define USER_COMPONENTS\
+	XUI_WINDOW_C,\
+	COMPONENT_COUNT
+
+#define USER_COMPONENT_SIZES\
+	,40
+	
+
+#endif
