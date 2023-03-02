@@ -3,10 +3,18 @@
 
 #define USER_COMPONENTS\
 	XUI_WINDOW_C,\
+	XUI_WIDGET_C,\
+	XUI_PANEL_C,\
+	XUI_BUTTON_C,\
+	XUI_TEXT_C,\
 	COMPONENT_COUNT
 
 #define USER_COMPONENT_SIZES\
-	,40
+	,40\
+	,12\
+	,12\
+	,8\
+	,260
 	
 
 #endif

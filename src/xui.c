@@ -5,10 +5,24 @@ VECTOR_SOURCE(xui_window_list, xui_window*)
 
 void register_xui_systems(program_state* state, xi_utils* xi){
 	system_add(state, system_init(xui_window_update, 2, POSITION_C, XUI_WINDOW_C), XI_STATE_UPDATE);
+	system_add(state, system_init(xui_widget_mutate, 1, XUI_WIDGET_C), XI_STATE_UPDATE);
+	system_add(state, system_init(xui_button_mutate, 3, XUI_WIDGET_C, XUI_PANEL_C, XUI_BUTTON_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_window_draw, 2, POSITION_C, XUI_WINDOW_C), XI_STATE_RENDER);
+	system_add(state, system_init(xui_panel_render, 2, XUI_WIDGET_C, XUI_PANEL_C), XI_STATE_RENDER);
+	system_add(state, system_init(xui_text_render, 2, XUI_WIDGET_C, XUI_TEXT_C), XI_STATE_RENDER);
 }
 
-uint32_t spawn_xui_window(xi_utils* xi, float x, float y, uint32_t w, uint32_t h, uint8_t resize, uint8_t move){
+xui_color xui_color_decode(uint32_t color){
+	xui_color c = {
+		(color >> 24) & 0xff,
+		(color >> 16) & 0xff,
+		(color >> 8) & 0xff,
+		(color) & 0xff
+	};
+	return c;
+}
+
+uint32_t spawn_xui_window(xi_utils* xi, float x, float y, uint32_t w, uint32_t h, uint8_t resize, uint8_t move, uint32_t color){
 	uint32_t entity = entity_create(xi->ecs);
 	v2 position = {x, y};
 	xui_window window;
@@ -19,10 +33,11 @@ uint32_t spawn_xui_window(xi_utils* xi, float x, float y, uint32_t w, uint32_t h
 	window.flags = (resize*(1<<XUI_WINDOW_CAN_RESIZE)) | (move*(1<<XUI_WINDOW_CAN_MOVE));
 	window.state = XUI_WINDOW_IDLE;
 	window.manager = &xi->project->window_manager;
-	window.r = 64;
-	window.g = 255;
-	window.b = 64;
-	window.a = 128;
+	xui_color c = xui_color_decode(color);
+	window.r = c.r;
+	window.g = c.g;
+	window.b = c.b;
+	window.a = c.a;
 	component_add(xi->ecs, entity, POSITION_C, &position);
 	component_add(xi->ecs, entity, XUI_WINDOW_C, &window);
 	xui_window_manager_add_window(&xi->project->window_manager, component_get(xi->ecs, entity, XUI_WINDOW_C));
@@ -121,11 +136,12 @@ SYSTEM(xui_window_update){
 SYSTEM(xui_window_draw){
 	ARG(v2* position, POSITION_C);
 	ARG(xui_window* window, XUI_WINDOW_C);
-	uint8_t alpha = window->a;
 	if (xi->project->window_manager.focused != window){
-		alpha /= 2;
+		renderSetColor(xi->graphics, window->r/XUI_UNFOCUSED_SCALEFACTOR, window->g/XUI_UNFOCUSED_SCALEFACTOR, window->b/XUI_UNFOCUSED_SCALEFACTOR, window->a);
 	}
-	renderSetColor(xi->graphics, window->r, window->g, window->b, alpha);
+	else{
+		renderSetColor(xi->graphics, window->r, window->g, window->b, window->a);
+	}
 	drawRect(xi->graphics, position->x, position->y, window->w, window->h, FILL);
 	v2 mouse = mousePos(xi->user_input);
 	if (
@@ -141,7 +157,6 @@ SYSTEM(xui_window_draw){
 }
 
 void xui_window_manager_init(xui_window_manager* manager){
-	fflush(stdout);
 	manager->windows = xui_window_listInit();
 	manager->focused = NULL;
 }
@@ -150,3 +165,92 @@ void xui_window_manager_add_window(xui_window_manager* manager, xui_window* wind
 	xui_window_listPushBack(&manager->windows, window);
 	if (manager->focused == NULL) manager->focused = window;
 }
+
+uint32_t spawn_xui_panel(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color){
+	uint32_t entity = entity_create(xi->ecs);
+	xui_widget widget = {window, x, y};
+	xui_color c = xui_color_decode(color);
+	xui_panel panel = {w, h, c.r, c.g, c.b, c.a};
+	component_add(xi->ecs, entity, XUI_WIDGET_C, &widget);
+	component_add(xi->ecs, entity, XUI_PANEL_C, &panel);
+	return entity;
+}
+
+SYSTEM(xui_widget_mutate){
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	entity_set_layer(xi->ecs, id, entity_get_layer(xi->ecs, widget->window)+1);
+}
+
+SYSTEM(xui_panel_render){
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	ARG(xui_panel* panel, XUI_PANEL_C);
+	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
+	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	if (xi->project->window_manager.focused == window){
+		renderSetColor(xi->graphics, panel->r, panel->g, panel->b, panel->a);
+	}
+	else{
+		renderSetColor(xi->graphics, panel->r/XUI_UNFOCUSED_SCALEFACTOR, panel->g/XUI_UNFOCUSED_SCALEFACTOR, panel->b/XUI_UNFOCUSED_SCALEFACTOR, panel->a);
+	}
+	drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel->w, panel->h, FILL);
+	renderSetColor(xi->graphics, 0, 0, 0, 0);
+}
+
+uint32_t spawn_xui_button(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color, void (*f)(SYSTEM_ARG_REQUIREMENTS)){
+	uint32_t panel = spawn_xui_panel(xi, window, x, y, w, h, color);
+	xui_button clickable;
+	clickable.f = f;
+	component_add(xi->ecs, panel, XUI_BUTTON_C, &clickable);
+	return panel;
+}
+
+SYSTEM(xui_button_mutate){
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	ARG(xui_panel* panel, XUI_PANEL_C);
+	ARG(xui_button* button, XUI_BUTTON_C);
+	v2 mouse = mousePos(xi->user_input);
+	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
+	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	if (xi->project->window_manager.focused != window) return;
+	if (!mousePressed(xi->user_input, 1)) return;
+	if (
+		mouse.x < widget->x+position->x ||
+		mouse.y < widget->y+position->y ||
+		mouse.x > widget->x+position->x+panel->w ||
+		mouse.y > widget->y+position->y+panel->h
+	) return;
+	button->f(SYSTEM_ARGS);
+}
+
+uint32_t spawn_xui_text(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, char* text, uint32_t color){
+	uint32_t entity = entity_create(xi->ecs);
+	xui_widget widget = {window, x, y};
+	xui_color c = xui_color_decode(color);
+	xui_text message = {"", c.r, c.g, c.b, c.a};
+	if (strlen(text) > XUI_TEXT_MAX){
+		strcpy(message.text, "");
+	}
+	else{
+		strcpy(message.text, text);
+	}
+	component_add(xi->ecs, entity, XUI_WIDGET_C, &widget);
+	component_add(xi->ecs, entity, XUI_TEXT_C, &message);
+	return entity;
+}
+
+SYSTEM(xui_text_render){
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	ARG(xui_text* text, XUI_TEXT_C);
+	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
+	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	if (xi->project->window_manager.focused != window){
+
+		drawTextC(xi->graphics, widget->x+position->x, widget->y+position->y, text->text, text->r/XUI_UNFOCUSED_SCALEFACTOR, text->g/XUI_UNFOCUSED_SCALEFACTOR, text->b/XUI_UNFOCUSED_SCALEFACTOR, text->a);
+	}
+	else{
+		drawTextC(xi->graphics, widget->x+position->x, widget->y+position->y, text->text, text->r, text->g, text->b, text->a);
+	}
+}
+
+
+
