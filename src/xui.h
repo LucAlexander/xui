@@ -12,7 +12,7 @@
 #define XUI_WINDOW_LAYER_FOCUSED 10
 
 #define XUI_TEXT_MAX 256
-#define XUI_UNFOCUSED_SCALEFACTOR 2
+#define XUI_UNFOCUSED_SCALEFACTOR 1.2
 
 void register_xui_systems(program_state* state, xi_utils* xi);
 
@@ -89,16 +89,20 @@ typedef struct xui_panel{
 	uint8_t g;
 	uint8_t b;
 	uint8_t a;
+	uint8_t border_r;
+	uint8_t border_g;
+	uint8_t border_b;
+	uint8_t border_a;
 }xui_panel;
 
-uint32_t spawn_xui_panel(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color);
+uint32_t spawn_xui_panel(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color, uint32_t border_color);
 SYSTEM(xui_panel_render);
 
 typedef struct xui_button{
 	void (*f)(SYSTEM_ARG_REQUIREMENTS);
 }xui_button;
 
-uint32_t spawn_xui_button(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color, void (*f)(SYSTEM_ARG_REQUIREMENTS));
+uint32_t spawn_xui_button(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color, uint32_t border_color, void (*f)(SYSTEM_ARG_REQUIREMENTS));
 SYSTEM(xui_button_mutate);
 
 #define XUI_TEXT_LOCAL_DEPTH 3

@@ -167,11 +167,12 @@ void xui_window_manager_add_window(xui_window_manager* manager, xui_window* wind
 	if (manager->focused == NULL) manager->focused = window;
 }
 
-uint32_t spawn_xui_panel(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color){
+uint32_t spawn_xui_panel(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color, uint32_t border_color){
 	uint32_t entity = entity_create(xi->ecs);
 	xui_widget widget = {window, x, y, XUI_PANEL_LOCAL_DEPTH};
 	xui_color c = xui_color_decode(color);
-	xui_panel panel = {w, h, c.r, c.g, c.b, c.a};
+	xui_color bc = xui_color_decode(border_color);
+	xui_panel panel = {w, h, c.r, c.g, c.b, c.a, bc.r, bc.g, bc.b, bc.a};
 	component_add(xi->ecs, entity, XUI_WIDGET_C, &widget);
 	component_add(xi->ecs, entity, XUI_PANEL_C, &panel);
 	return entity;
@@ -187,18 +188,24 @@ SYSTEM(xui_panel_render){
 	ARG(xui_panel* panel, XUI_PANEL_C);
 	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
 	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+
 	if (xi->project->window_manager.focused == window){
 		renderSetColor(xi->graphics, panel->r, panel->g, panel->b, panel->a);
+		drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel->w, panel->h, FILL);
+		renderSetColor(xi->graphics, panel->border_r, panel->border_g, panel->border_b, panel->border_a);
+		drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel->w, panel->h, OUTLINE);
 	}
 	else{
 		renderSetColor(xi->graphics, panel->r/XUI_UNFOCUSED_SCALEFACTOR, panel->g/XUI_UNFOCUSED_SCALEFACTOR, panel->b/XUI_UNFOCUSED_SCALEFACTOR, panel->a);
+		drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel->w, panel->h, FILL);
+		renderSetColor(xi->graphics, panel->border_r/XUI_UNFOCUSED_SCALEFACTOR, panel->border_g/XUI_UNFOCUSED_SCALEFACTOR, panel->border_b/XUI_UNFOCUSED_SCALEFACTOR, panel->border_a/XUI_UNFOCUSED_SCALEFACTOR);
+		drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel->w, panel->h, OUTLINE);
 	}
-	drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel->w, panel->h, FILL);
 	renderSetColor(xi->graphics, 0, 0, 0, 0);
 }
 
-uint32_t spawn_xui_button(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color, void (*f)(SYSTEM_ARG_REQUIREMENTS)){
-	uint32_t panel = spawn_xui_panel(xi, window, x, y, w, h, color);
+uint32_t spawn_xui_button(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color, uint32_t border_color, void (*f)(SYSTEM_ARG_REQUIREMENTS)){
+	uint32_t panel = spawn_xui_panel(xi, window, x, y, w, h, color, border_color);
 	xui_button clickable;
 	clickable.f = f;
 	component_add(xi->ecs, panel, XUI_BUTTON_C, &clickable);
