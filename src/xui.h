@@ -100,10 +100,15 @@ SYSTEM(xui_panel_render);
 
 typedef struct xui_button{
 	void (*f)(SYSTEM_ARG_REQUIREMENTS);
+	uint8_t hover_r;
+	uint8_t hover_g;
+	uint8_t hover_b;
+	uint8_t hover_a;
 }xui_button;
 
-uint32_t spawn_xui_button(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color, uint32_t border_color, void (*f)(SYSTEM_ARG_REQUIREMENTS));
+uint32_t spawn_xui_button(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color, uint32_t border_color, uint32_t hover_color, void (*f)(SYSTEM_ARG_REQUIREMENTS));
 SYSTEM(xui_button_mutate);
+SYSTEM(xui_button_render);
 
 #define XUI_TEXT_LOCAL_DEPTH 3
 

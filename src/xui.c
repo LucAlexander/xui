@@ -9,6 +9,7 @@ void register_xui_systems(program_state* state, xi_utils* xi){
 	system_add(state, system_init(xui_button_mutate, 3, XUI_WIDGET_C, XUI_PANEL_C, XUI_BUTTON_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_window_draw, 2, POSITION_C, XUI_WINDOW_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_panel_render, 2, XUI_WIDGET_C, XUI_PANEL_C), XI_STATE_RENDER);
+	system_add(state, system_init(xui_button_render, 3, XUI_WIDGET_C, XUI_PANEL_C, XUI_BUTTON_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_blitable_render, 2, XUI_WIDGET_C, BLITABLE_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_text_render, 2, XUI_WIDGET_C, XUI_TEXT_C), XI_STATE_RENDER);
 }
@@ -180,6 +181,9 @@ uint32_t spawn_xui_panel(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, 
 
 SYSTEM(xui_widget_mutate){
 	ARG(xui_widget* widget, XUI_WIDGET_C);
+	if (!entity_active(xi->ecs, widget->window)){
+		entity_destroy(xi->ecs, id);
+	}
 	entity_set_layer(xi->ecs, id, entity_get_layer(xi->ecs, widget->window)+widget->local_depth);
 }
 
@@ -188,7 +192,6 @@ SYSTEM(xui_panel_render){
 	ARG(xui_panel* panel, XUI_PANEL_C);
 	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
 	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
-
 	if (xi->project->window_manager.focused == window){
 		renderSetColor(xi->graphics, panel->r, panel->g, panel->b, panel->a);
 		drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel->w, panel->h, FILL);
@@ -204,10 +207,15 @@ SYSTEM(xui_panel_render){
 	renderSetColor(xi->graphics, 0, 0, 0, 0);
 }
 
-uint32_t spawn_xui_button(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color, uint32_t border_color, void (*f)(SYSTEM_ARG_REQUIREMENTS)){
+uint32_t spawn_xui_button(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color, uint32_t border_color, uint32_t hover_color, void (*f)(SYSTEM_ARG_REQUIREMENTS)){
 	uint32_t panel = spawn_xui_panel(xi, window, x, y, w, h, color, border_color);
 	xui_button clickable;
 	clickable.f = f;
+	xui_color c = xui_color_decode(hover_color);
+	clickable.hover_r = c.r;
+	clickable.hover_g = c.g;
+	clickable.hover_b = c.b;
+	clickable.hover_a = c.a;
 	component_add(xi->ecs, panel, XUI_BUTTON_C, &clickable);
 	return panel;
 }
@@ -229,6 +237,26 @@ SYSTEM(xui_button_mutate){
 	) return;
 	button->f(SYSTEM_ARGS);
 }
+
+SYSTEM(xui_button_render){
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	ARG(xui_panel* panel, XUI_PANEL_C);
+	ARG(xui_button* button, XUI_BUTTON_C);
+	v2 mouse = mousePos(xi->user_input);
+	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
+	if (
+		mouse.x < widget->x+position->x ||
+		mouse.y < widget->y+position->y ||
+		mouse.x > widget->x+position->x+panel->w ||
+		mouse.y > widget->y+position->y+panel->h
+	) return;
+	renderSetColor(xi->graphics, button->hover_r, button->hover_g, button->hover_b, button->hover_a);
+	drawRect(xi->graphics, position->x+widget->x-1, position->y+widget->y+1, panel->w+2, panel->h+2, OUTLINE);
+	renderSetColor(xi->graphics, 0, 0, 0, 0);
+}
+
+
+	
 
 uint32_t spawn_xui_text(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, char* text, uint32_t color){
 	uint32_t entity = entity_create(xi->ecs);
