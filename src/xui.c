@@ -9,6 +9,7 @@ void register_xui_systems(program_state* state, xi_utils* xi){
 	system_add(state, system_init(xui_button_mutate, 3, XUI_WIDGET_C, XUI_PANEL_C, XUI_BUTTON_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_window_draw, 2, POSITION_C, XUI_WINDOW_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_panel_render, 2, XUI_WIDGET_C, XUI_PANEL_C), XI_STATE_RENDER);
+	system_add(state, system_init(xui_blitable_render, 2, XUI_WIDGET_C, BLITABLE_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_text_render, 2, XUI_WIDGET_C, XUI_TEXT_C), XI_STATE_RENDER);
 }
 
@@ -168,7 +169,7 @@ void xui_window_manager_add_window(xui_window_manager* manager, xui_window* wind
 
 uint32_t spawn_xui_panel(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color){
 	uint32_t entity = entity_create(xi->ecs);
-	xui_widget widget = {window, x, y};
+	xui_widget widget = {window, x, y, XUI_PANEL_LOCAL_DEPTH};
 	xui_color c = xui_color_decode(color);
 	xui_panel panel = {w, h, c.r, c.g, c.b, c.a};
 	component_add(xi->ecs, entity, XUI_WIDGET_C, &widget);
@@ -178,7 +179,7 @@ uint32_t spawn_xui_panel(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, 
 
 SYSTEM(xui_widget_mutate){
 	ARG(xui_widget* widget, XUI_WIDGET_C);
-	entity_set_layer(xi->ecs, id, entity_get_layer(xi->ecs, widget->window)+1);
+	entity_set_layer(xi->ecs, id, entity_get_layer(xi->ecs, widget->window)+widget->local_depth);
 }
 
 SYSTEM(xui_panel_render){
@@ -224,7 +225,7 @@ SYSTEM(xui_button_mutate){
 
 uint32_t spawn_xui_text(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, char* text, uint32_t color){
 	uint32_t entity = entity_create(xi->ecs);
-	xui_widget widget = {window, x, y};
+	xui_widget widget = {window, x, y, XUI_TEXT_LOCAL_DEPTH};
 	xui_color c = xui_color_decode(color);
 	xui_text message = {"", c.r, c.g, c.b, c.a};
 	if (strlen(text) > XUI_TEXT_MAX){
@@ -243,14 +244,38 @@ SYSTEM(xui_text_render){
 	ARG(xui_text* text, XUI_TEXT_C);
 	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
 	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
-	if (xi->project->window_manager.focused != window){
-
-		drawTextC(xi->graphics, widget->x+position->x, widget->y+position->y, text->text, text->r/XUI_UNFOCUSED_SCALEFACTOR, text->g/XUI_UNFOCUSED_SCALEFACTOR, text->b/XUI_UNFOCUSED_SCALEFACTOR, text->a);
-	}
-	else{
+	if (xi->project->window_manager.focused == window){
 		drawTextC(xi->graphics, widget->x+position->x, widget->y+position->y, text->text, text->r, text->g, text->b, text->a);
+		return;
 	}
+	drawTextC(
+		xi->graphics,
+		widget->x+position->x,
+		widget->y+position->y,
+		text->text,
+		text->r/XUI_UNFOCUSED_SCALEFACTOR,
+		text->g/XUI_UNFOCUSED_SCALEFACTOR,
+		text->b/XUI_UNFOCUSED_SCALEFACTOR,
+		text->a
+	);
 }
 
+uint32_t spawn_xui_blitable(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, char* src){
+	uint32_t entity = entity_create(xi->ecs);
+	xui_widget widget = {window, x, y, XUI_BLITABLE_LOCAL_DEPTH};
+	Blitable sprite;
+	BlitableInitF_arena(xi->graphics, &sprite, src, w, h);
+	sprite.center.x = 0;
+	sprite.center.y = 0;
+	component_add(xi->ecs, entity, XUI_WIDGET_C, &widget);
+	component_add(xi->ecs, entity, BLITABLE_C, &sprite);
+	return entity;
+}
 
+SYSTEM(xui_blitable_render){
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	ARG(Blitable* sprite, BLITABLE_C);
+	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
+	renderBlitable(xi->graphics, sprite, position->x+widget->x, position->y+widget->y);
+}
 

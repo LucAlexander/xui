@@ -75,9 +75,12 @@ typedef struct xui_widget{
 	uint32_t window;
 	uint32_t x;
 	uint32_t y;
+	uint32_t local_depth;
 }xui_widget;
 
 SYSTEM(xui_widget_mutate);
+
+#define XUI_PANEL_LOCAL_DEPTH 1
 
 typedef struct xui_panel{
 	uint32_t w;
@@ -98,6 +101,8 @@ typedef struct xui_button{
 uint32_t spawn_xui_button(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color, void (*f)(SYSTEM_ARG_REQUIREMENTS));
 SYSTEM(xui_button_mutate);
 
+#define XUI_TEXT_LOCAL_DEPTH 3
+
 typedef struct xui_text{
 	char text[XUI_TEXT_MAX];
 	uint8_t r;
@@ -108,5 +113,10 @@ typedef struct xui_text{
 
 uint32_t spawn_xui_text(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, char* text, uint32_t color);
 SYSTEM(xui_text_render);
+
+#define XUI_BLITABLE_LOCAL_DEPTH 2
+
+uint32_t spawn_xui_blitable(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, char* src);
+SYSTEM(xui_blitable_render);
 
 #endif

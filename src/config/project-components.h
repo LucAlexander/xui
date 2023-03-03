@@ -11,7 +11,7 @@
 
 #define USER_COMPONENT_SIZES\
 	,40\
-	,12\
+	,16\
 	,12\
 	,8\
 	,260
