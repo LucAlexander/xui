@@ -44,7 +44,7 @@ void xistart(xi_utils* xi){
 	uint32_t lh = WINDOW_H-(screen_margain*2);
 	uint32_t left_window = spawn_xui_window(xi, lx,ly, lw,lh, 0, 0, window_color);
 	uint32_t bottom_window = spawn_xui_window(xi, (screen_margain*2)+(WINDOW_W/4), WINDOW_H-(WINDOW_H/3)-screen_margain, WINDOW_W-(screen_margain*3)-WINDOW_W/4, WINDOW_H/3, 0, 0, window_color);
-	uint32_t float_window = spawn_xui_window(xi, (WINDOW_W/4)+screen_margain*2, screen_margain, (WINDOW_W-(WINDOW_W/4))-(screen_margain*3), (WINDOW_H-(WINDOW_H/3))-(screen_margain*3), 1, 1, float_window_color);
+	spawn_xui_window(xi, (WINDOW_W/4)+screen_margain*2, screen_margain, (WINDOW_W-(WINDOW_W/4))-(screen_margain*3), (WINDOW_H-(WINDOW_H/3))-(screen_margain*3), 1, 1, float_window_color);
 	uint32_t bw = 80;
 	uint32_t bh = 48;
 	uint32_t button_margain_w = bh/2;
@@ -54,5 +54,6 @@ void xistart(xi_utils* xi){
 	spawn_xui_button(xi, left_window, lx + window_margain, ly + (window_margain*2) + bh, bw, bh, widget_color, widget_outline_color, widget_outline_color, button_test);
 	spawn_xui_button(xi, bottom_window, lx + window_margain, ly + window_margain, bw, bh, widget_color, widget_outline_color, widget_outline_color, button_close_window);
 	spawn_xui_text(xi, bottom_window, lx + window_margain + button_margain_w, ly + window_margain + button_margain_h, "Close", text_color);
+	spawn_xui_blitable(xi, bottom_window, window_margain, window_margain, 32, 32, XI_SPRITE"catpon.png");
 }
 
