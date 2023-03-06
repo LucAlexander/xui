@@ -7,11 +7,13 @@ void register_xui_systems(program_state* state, xi_utils* xi){
 	system_add(state, system_init(xui_window_update, 2, POSITION_C, XUI_WINDOW_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_widget_mutate, 1, XUI_WIDGET_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_button_mutate, 3, XUI_WIDGET_C, XUI_PANEL_C, XUI_BUTTON_C), XI_STATE_UPDATE);
+	system_add(state, system_init(xui_radio_mutate, 2, XUI_WIDGET_C, XUI_RADIO_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_window_draw, 2, POSITION_C, XUI_WINDOW_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_panel_render, 2, XUI_WIDGET_C, XUI_PANEL_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_button_render, 3, XUI_WIDGET_C, XUI_PANEL_C, XUI_BUTTON_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_blitable_render, 2, XUI_WIDGET_C, BLITABLE_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_text_render, 2, XUI_WIDGET_C, XUI_TEXT_C), XI_STATE_RENDER);
+	system_add(state, system_init(xui_radio_render, 2, XUI_WIDGET_C, XUI_RADIO_C), XI_STATE_RENDER);
 }
 
 xui_color xui_color_decode(uint32_t color){
@@ -92,7 +94,6 @@ SYSTEM(xui_window_update){
 				window->state = XUI_WINDOW_RESIZE;
 				window->start_y = 1;
 			}
-
 		}break;
 		case XUI_WINDOW_MOVE:{
 			if (((window->flags & (1<<XUI_WINDOW_CAN_MOVE)) == 0)) return;
@@ -255,9 +256,6 @@ SYSTEM(xui_button_render){
 	renderSetColor(xi->graphics, 0, 0, 0, 0);
 }
 
-
-	
-
 uint32_t spawn_xui_text(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, char* text, uint32_t color){
 	uint32_t entity = entity_create(xi->ecs);
 	xui_widget widget = {window, x, y, XUI_TEXT_LOCAL_DEPTH};
@@ -312,5 +310,56 @@ SYSTEM(xui_blitable_render){
 	ARG(Blitable* sprite, BLITABLE_C);
 	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
 	renderBlitable(xi->graphics, sprite, position->x+widget->x, position->y+widget->y);
+}
+
+uint32_t spawn_xui_radio(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t on_color, uint32_t hover_color){
+	uint32_t entity = entity_create(xi->ecs);
+	xui_widget widget = {window, x,y, XUI_PANEL_LOCAL_DEPTH};
+	xui_color c = xui_color_decode(on_color);
+	xui_color hc = xui_color_decode(hover_color);
+	xui_radio radio = {w, h, c.r, c.g, c.b, c.a, hc.r, hc.g, hc.b, hc.a, 0};
+	component_add(xi->ecs, entity, XUI_WIDGET_C, &widget);
+	component_add(xi->ecs, entity, XUI_RADIO_C, &radio);
+	return entity;
+}
+
+SYSTEM(xui_radio_mutate){
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	ARG(xui_radio* button, XUI_RADIO_C);
+	v2 mouse = mousePos(xi->user_input);
+	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
+	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	if (xi->project->window_manager.focused != window) return;
+	if (!mousePressed(xi->user_input, 1)) return;
+	if (
+		mouse.x < widget->x+position->x ||
+		mouse.y < widget->y+position->y ||
+		mouse.x > widget->x+position->x+button->w ||
+		mouse.y > widget->y+position->y+button->h
+	) return;
+	button->value = !button->value;
+}
+
+SYSTEM(xui_radio_render){
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	ARG(xui_radio* button, XUI_RADIO_C);
+	v2 mouse = mousePos(xi->user_input);
+	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
+	renderSetColor(xi->graphics, button->r, button->g, button->b, button->a);
+	if (button->value){
+		drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, button->w, button->h, FILL);
+	}
+	renderSetColor(xi->graphics, button->hover_r, button->hover_g, button->hover_b, button->hover_a);
+	drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, button->w, button->h, OUTLINE);
+	drawRect(xi->graphics, position->x+widget->x+1, position->y+widget->y+1, button->w-2, button->h-2, OUTLINE);
+	if (
+		mouse.x > widget->x+position->x &&
+		mouse.y > widget->y+position->y &&
+		mouse.x < widget->x+position->x+button->w &&
+		mouse.y < widget->y+position->y+button->h
+	){
+		drawRect(xi->graphics, position->x+widget->x-1, position->y+widget->y-1, button->w+2, button->h+2, OUTLINE);
+	}
+	renderSetColor(xi->graphics, 0, 0, 0, 0);
 }
 

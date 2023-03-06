@@ -128,4 +128,23 @@ SYSTEM(xui_text_render);
 uint32_t spawn_xui_blitable(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, char* src);
 SYSTEM(xui_blitable_render);
 
+typedef struct xui_radio{
+	uint32_t w;
+	uint32_t h;
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+	uint8_t a;
+	uint8_t hover_r;
+	uint8_t hover_g;
+	uint8_t hover_b;
+	uint8_t hover_a;
+	uint8_t value;
+}xui_radio;
+
+uint32_t spawn_xui_radio(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t on_color, uint32_t hover_color);
+SYSTEM(xui_radio_mutate);
+SYSTEM(xui_radio_render);
+
 #endif
+
