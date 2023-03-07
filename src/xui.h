@@ -3,7 +3,7 @@
 
 #include "xi_engine.h"
 
-#define XUI_WINDOW_BAR_HEIGHT 16
+#define XUI_WINDOW_BAR_HEIGHT 24
 #define XUI_WINDOW_MARGAIN 8
 #define XUI_WINDOW_MIN_W 64
 #define XUI_WINDOW_MIN_H 32
@@ -145,6 +145,28 @@ typedef struct xui_radio{
 uint32_t spawn_xui_radio(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t on_color, uint32_t hover_color);
 SYSTEM(xui_radio_mutate);
 SYSTEM(xui_radio_render);
+
+typedef enum XUI_SLIDER_DIR{
+	XUI_SLIDER_X=0,
+	XUI_SLIDER_Y
+}XUI_SLIDER_DIR;
+
+typedef struct xui_slider{
+	float min;
+	float max;
+	float position;
+	uint32_t nob_w;
+	uint32_t nob_h;
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+	uint8_t a;
+	XUI_SLIDER_DIR dir;
+}xui_slider;
+
+uint32_t spawn_xui_slider(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t nob_w, uint32_t nob_h, float min, float max, uint32_t color, XUI_SLIDER_DIR dir);
+SYSTEM(xui_slider_mutate);
+SYSTEM(xui_slider_render);
 
 #endif
 

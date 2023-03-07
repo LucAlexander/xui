@@ -7,13 +7,15 @@ void register_xui_systems(program_state* state, xi_utils* xi){
 	system_add(state, system_init(xui_window_update, 2, POSITION_C, XUI_WINDOW_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_widget_mutate, 1, XUI_WIDGET_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_button_mutate, 3, XUI_WIDGET_C, XUI_PANEL_C, XUI_BUTTON_C), XI_STATE_UPDATE);
+	system_add(state, system_init(xui_slider_mutate, 2, XUI_WIDGET_C, XUI_SLIDER_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_radio_mutate, 2, XUI_WIDGET_C, XUI_RADIO_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_window_draw, 2, POSITION_C, XUI_WINDOW_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_panel_render, 2, XUI_WIDGET_C, XUI_PANEL_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_button_render, 3, XUI_WIDGET_C, XUI_PANEL_C, XUI_BUTTON_C), XI_STATE_RENDER);
+	system_add(state, system_init(xui_slider_render, 2, XUI_WIDGET_C, XUI_SLIDER_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_blitable_render, 2, XUI_WIDGET_C, BLITABLE_C), XI_STATE_RENDER);
-	system_add(state, system_init(xui_text_render, 2, XUI_WIDGET_C, XUI_TEXT_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_radio_render, 2, XUI_WIDGET_C, XUI_RADIO_C), XI_STATE_RENDER);
+	system_add(state, system_init(xui_text_render, 2, XUI_WIDGET_C, XUI_TEXT_C), XI_STATE_RENDER);
 }
 
 xui_color xui_color_decode(uint32_t color){
@@ -345,7 +347,13 @@ SYSTEM(xui_radio_render){
 	ARG(xui_radio* button, XUI_RADIO_C);
 	v2 mouse = mousePos(xi->user_input);
 	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
-	renderSetColor(xi->graphics, button->r, button->g, button->b, button->a);
+	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	if (xi->project->window_manager.focused == window){
+		renderSetColor(xi->graphics, button->r, button->g, button->b, button->a);
+	}
+	else{
+		renderSetColor(xi->graphics, button->r/XUI_UNFOCUSED_SCALEFACTOR, button->g/XUI_UNFOCUSED_SCALEFACTOR, button->b/XUI_UNFOCUSED_SCALEFACTOR, button->a);
+	}
 	if (button->value){
 		drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, button->w, button->h, FILL);
 	}
@@ -359,6 +367,75 @@ SYSTEM(xui_radio_render){
 		mouse.y < widget->y+position->y+button->h
 	){
 		drawRect(xi->graphics, position->x+widget->x-1, position->y+widget->y-1, button->w+2, button->h+2, OUTLINE);
+	}
+	renderSetColor(xi->graphics, 0, 0, 0, 0);
+}
+
+uint32_t spawn_xui_slider(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t nob_w, uint32_t nob_h, float min, float max, uint32_t color, XUI_SLIDER_DIR dir){
+	uint32_t entity = entity_create(xi->ecs);
+	xui_widget widget = {window, x,y, XUI_PANEL_LOCAL_DEPTH};
+	xui_color c = xui_color_decode(color);
+	xui_slider slide = {min, max, (max-min)/2, nob_w, nob_h, c.r, c.g, c.b, c.a, dir};
+	component_add(xi->ecs, entity, XUI_WIDGET_C, &widget);
+	component_add(xi->ecs, entity, XUI_SLIDER_C, &slide);
+	return entity;
+}
+
+SYSTEM(xui_slider_mutate){
+	if (!mouseHeld(xi->user_input, 1)) return;
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	ARG(xui_slider* slider, XUI_SLIDER_C);
+	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	if (xi->project->window_manager.focused != window) return;
+	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
+	v2 mouse = mousePos(xi->user_input);
+	float half_len = (slider->max - slider->min) / 2;
+	switch(slider->dir){
+		case XUI_SLIDER_X:{
+			if (
+				mouse.x < position->x + widget->x - half_len ||
+				mouse.x > position->x + widget->x + half_len ||
+				mouse.y < position->y + widget->y - (slider->nob_w/2) || 
+				mouse.y > position->y + widget->y + (slider->nob_w/2)
+			) return;
+			slider->position = mouse.x - (position->x + widget->x - half_len);
+		}return;
+		case XUI_SLIDER_Y:{
+			if (
+				mouse.x < position->x + widget->x - (slider->nob_w/2) ||
+				mouse.x > position->x + widget->x + (slider->nob_w/2) ||
+				mouse.y < position->y + widget->y - half_len || 
+				mouse.y > position->y + widget->y + half_len
+			) return;
+			slider->position = mouse.y - (position->y + widget->y - half_len);
+		}return;
+	}
+}
+
+SYSTEM(xui_slider_render){
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	ARG(xui_slider* slider, XUI_SLIDER_C);
+	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
+	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	if (xi->project->window_manager.focused == window){
+		renderSetColor(xi->graphics, slider->r, slider->g, slider->b, slider->a);
+	}
+	else{
+		renderSetColor(xi->graphics, slider->r/XUI_UNFOCUSED_SCALEFACTOR, slider->g/XUI_UNFOCUSED_SCALEFACTOR, slider->b/XUI_UNFOCUSED_SCALEFACTOR, slider->a);
+	}
+	float half_len = (slider->max - slider->min) / 2;
+	float start;
+	switch(slider->dir){
+		case XUI_SLIDER_X:{
+			start = position->x + widget->x - half_len;
+			drawRect(xi->graphics, start, position->y+widget->y, slider->max-slider->min, 2, FILL);
+			drawRect(xi->graphics, (start + slider->position)-(slider->nob_h/2), position->y+widget->y-(slider->nob_w/2), slider->nob_h, slider->nob_w, FILL);
+		}break;
+		case XUI_SLIDER_Y:{
+			start = position->y + widget->y - half_len;
+			drawRect(xi->graphics, position->x+widget->x, start, 2, slider->max-slider->min, FILL);
+			drawRect(xi->graphics, position->x + widget->x - (slider->nob_w/2), (start+slider->position)-(slider->nob_h/2), slider->nob_w, slider->nob_h, FILL);
+		}break;
 	}
 	renderSetColor(xi->graphics, 0, 0, 0, 0);
 }
