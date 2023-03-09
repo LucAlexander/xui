@@ -13,6 +13,7 @@
 
 #define XUI_TEXT_MAX 256
 #define XUI_UNFOCUSED_SCALEFACTOR 1.2
+#define XUI_TAB_W 4
 
 void register_xui_systems(program_state* state, xi_utils* xi);
 
@@ -168,5 +169,25 @@ uint32_t spawn_xui_slider(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y,
 SYSTEM(xui_slider_mutate);
 SYSTEM(xui_slider_render);
 
-#endif
+#define XUI_TEXTENTRY_ALLOWED_KEYS "1234567890-=qazwsxedcrfvtgbyhnujmik,./;'lop[]\\" 
+#define XUI_TEXTENTRY_ALLOWED_KEYS_LEN strlen(XUI_TEXTENTRY_ALLOWED_KEYS)
 
+typedef struct xui_textentry{
+	char text[XUI_TEXT_MAX];
+	uint32_t w;
+	uint32_t h;
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+	uint8_t a;
+	uint8_t selected;
+	uint8_t position;
+}xui_textentry;
+
+void strins(char* source, char* str, uint32_t index);
+
+uint32_t spawn_xui_textentry(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t text_color);
+SYSTEM(xui_textentry_mutate);
+SYSTEM(xui_textentry_render);
+
+#endif

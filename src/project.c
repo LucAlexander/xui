@@ -58,5 +58,6 @@ void xistart(xi_utils* xi){
 	spawn_xui_radio(xi, float_window, window_margain, window_margain, 32, 32, 0xFF0000FF, widget_outline_color);
 	spawn_xui_slider(xi, float_window, (window_margain*2)+128, window_margain, 16, 8, 0, 100, widget_color, XUI_SLIDER_X);
 	spawn_xui_slider(xi, float_window, window_margain, (window_margain*2)+128, 16, 8, 50, 200, widget_color, XUI_SLIDER_Y);
+	spawn_xui_textentry(xi, float_window, (window_margain*2)+128, (window_margain*2)+128, 128, 128, text_color);
 }
 

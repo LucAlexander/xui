@@ -1,6 +1,8 @@
 #include "xui.h"
 #include "project.h"
 
+#include <string.h>
+
 VECTOR_SOURCE(xui_window_list, xui_window*)
 
 void register_xui_systems(program_state* state, xi_utils* xi){
@@ -9,6 +11,7 @@ void register_xui_systems(program_state* state, xi_utils* xi){
 	system_add(state, system_init(xui_button_mutate, 3, XUI_WIDGET_C, XUI_PANEL_C, XUI_BUTTON_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_slider_mutate, 2, XUI_WIDGET_C, XUI_SLIDER_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_radio_mutate, 2, XUI_WIDGET_C, XUI_RADIO_C), XI_STATE_UPDATE);
+	system_add(state, system_init(xui_textentry_mutate, 2, XUI_WIDGET_C, XUI_TEXTENTRY_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_window_draw, 2, POSITION_C, XUI_WINDOW_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_panel_render, 2, XUI_WIDGET_C, XUI_PANEL_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_button_render, 3, XUI_WIDGET_C, XUI_PANEL_C, XUI_BUTTON_C), XI_STATE_RENDER);
@@ -16,6 +19,7 @@ void register_xui_systems(program_state* state, xi_utils* xi){
 	system_add(state, system_init(xui_blitable_render, 2, XUI_WIDGET_C, BLITABLE_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_radio_render, 2, XUI_WIDGET_C, XUI_RADIO_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_text_render, 2, XUI_WIDGET_C, XUI_TEXT_C), XI_STATE_RENDER);
+	system_add(state, system_init(xui_textentry_render, 2, XUI_WIDGET_C, XUI_TEXTENTRY_C), XI_STATE_RENDER);
 }
 
 xui_color xui_color_decode(uint32_t color){
@@ -436,6 +440,108 @@ SYSTEM(xui_slider_render){
 			drawRect(xi->graphics, position->x+widget->x, start, 2, slider->max-slider->min, FILL);
 			drawRect(xi->graphics, position->x + widget->x - (slider->nob_w/2), (start+slider->position)-(slider->nob_h/2), slider->nob_w, slider->nob_h, FILL);
 		}break;
+	}
+	renderSetColor(xi->graphics, 0, 0, 0, 0);
+}
+
+void strins(char* source, char* str, uint32_t index){
+	uint32_t i, n = strlen(source);
+	uint32_t offset = strlen(str);
+	for (i = index+offset;i<n+offset;++i){
+		source[i] = source[i-offset];
+	}
+	source[n+offset] = '\0';
+	for (i = index;i<index+offset;++i){
+		source[i] = str[i-index];
+	}
+}
+
+uint32_t spawn_xui_textentry(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t text_color){
+	uint32_t entity = entity_create(xi->ecs);
+	xui_widget widget = {window, x,y, XUI_TEXT_LOCAL_DEPTH};
+	xui_color c = xui_color_decode(text_color);
+	xui_textentry text = {"", w, h, c.r, c.g, c.b, c.a, 0, 0};
+	component_add(xi->ecs, entity, XUI_WIDGET_C, &widget);
+	component_add(xi->ecs, entity, XUI_TEXTENTRY_C, &text);
+	return entity;
+}
+
+SYSTEM(xui_textentry_mutate){
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	ARG(xui_textentry* text, XUI_TEXTENTRY_C);
+	v2 mouse = mousePos(xi->user_input);
+	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
+	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	if (xi->project->window_manager.focused != window) return;
+	if (text->selected){
+		char keys[XUI_TEXTENTRY_ALLOWED_KEYS_LEN];
+		keystream(xi->user_input, keys, XUI_TEXTENTRY_ALLOWED_KEYS); 
+		if (strcmp(keys, "") && strlen(keys)+strlen(text->text) < XUI_TEXT_MAX){
+			strcat(text->text, keys);
+		}
+		if (keyPressed(xi->user_input, "Return") && (strlen(text->text)+1) < XUI_TEXT_MAX){
+			strcat(text->text, "\n");
+		}
+		if (keyPressed(xi->user_input, "Tab") && (strlen(text->text)+1) < XUI_TEXT_MAX){
+			strcat(text->text, "\t");
+		}
+		if (keyPressed(xi->user_input, "Space") && (strlen(text->text)+1) < XUI_TEXT_MAX){
+			strcat(text->text, " ");
+		}
+		if (keyPressed(xi->user_input, "Backspace") && (strlen(text->text)+1) < XUI_TEXT_MAX){
+			text->text[strlen(text->text)-1] = '\0';
+		}
+	}
+	if (!mousePressed(xi->user_input, 1)) return;
+	if (
+		mouse.x < widget->x+position->x ||
+		mouse.y < widget->y+position->y ||
+		mouse.x > widget->x+position->x+text->w ||
+		mouse.y > widget->y+position->y+text->h
+	){
+		text->selected = 0;
+		return;
+	}
+	text->selected = 1;
+}
+
+SYSTEM(xui_textentry_render){
+	//TODO limited view window
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	ARG(xui_textentry* text, XUI_TEXTENTRY_C);
+	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
+	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	if (xi->project->window_manager.focused == window){
+		renderSetColor(xi->graphics, text->r, text->g, text->b, text->a);
+	}
+	else{
+		renderSetColor(xi->graphics, text->r/XUI_UNFOCUSED_SCALEFACTOR, text->g/XUI_UNFOCUSED_SCALEFACTOR, text->b/XUI_UNFOCUSED_SCALEFACTOR, text->a);
+	}
+	char copy[XUI_TEXT_MAX];
+	strcpy(copy, text->text);
+	char* context = NULL;
+	char* line = strtok_r(copy, "\n", &context);
+	uint32_t start_x = widget->x+position->x;
+	uint32_t render_x = start_x;
+	uint32_t render_y = widget->y+position->y;
+	int32_t cw, ch;
+	queryTextSize(xi->graphics, " ", &cw, &ch);
+	while (line != NULL){
+		char linecopy[XUI_TEXT_MAX];
+		strcpy(linecopy, line);
+		if (strlen(linecopy) == 0) continue;
+		if (linecopy[0] == '\t'){
+			render_x += XUI_TAB_W * cw;
+		}
+		char* segment = strtok(linecopy, "\t");
+		while (segment != NULL){
+			drawText(xi->graphics, render_x, render_y, segment);
+			render_x += getTextWidth(xi->graphics, segment)+(XUI_TAB_W * cw);
+			segment = strtok(NULL, "\t");
+/*urcute*/	}
+		render_y += ch;
+		render_x = start_x;
+		line = strtok_r(NULL, "\n", &context);
 	}
 	renderSetColor(xi->graphics, 0, 0, 0, 0);
 }
