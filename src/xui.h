@@ -185,6 +185,7 @@ typedef struct xui_textentry{
 }xui_textentry;
 
 void strins(char* source, char* str, uint32_t index);
+void strcut(char* source, int32_t index);
 
 uint32_t spawn_xui_textentry(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t text_color);
 SYSTEM(xui_textentry_mutate);

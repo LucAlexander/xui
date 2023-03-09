@@ -446,13 +446,28 @@ SYSTEM(xui_slider_render){
 
 void strins(char* source, char* str, uint32_t index){
 	uint32_t i, n = strlen(source);
+	if (n == index){
+		strcat(source, str);
+		return;
+	}
 	uint32_t offset = strlen(str);
-	for (i = index+offset;i<n+offset;++i){
+	for (i = n+offset-1;i>=index+offset;--i){
 		source[i] = source[i-offset];
 	}
 	source[n+offset] = '\0';
 	for (i = index;i<index+offset;++i){
 		source[i] = str[i-index];
+	}
+}
+
+void strcut(char* source, int32_t index){
+	uint32_t i, n = strlen(source);
+	if (n == index){
+		source[n-1] = '\0';
+		return;
+	}
+	for (i = index;i<n;++i){
+		source[i] = source[i+1];
 	}
 }
 
@@ -476,20 +491,38 @@ SYSTEM(xui_textentry_mutate){
 	if (text->selected){
 		char keys[XUI_TEXTENTRY_ALLOWED_KEYS_LEN];
 		keystream(xi->user_input, keys, XUI_TEXTENTRY_ALLOWED_KEYS); 
-		if (strcmp(keys, "") && strlen(keys)+strlen(text->text) < XUI_TEXT_MAX){
-			strcat(text->text, keys);
+		uint32_t n = strlen(keys);
+		if (strcmp(keys, "") && ((strlen(text->text)+n) < XUI_TEXT_MAX)){
+			strins(text->text, keys, text->position);
+			text->position += n;
 		}
 		if (keyPressed(xi->user_input, "Return") && (strlen(text->text)+1) < XUI_TEXT_MAX){
-			strcat(text->text, "\n");
+			strins(text->text, "\n", text->position);
+			text->position++;
 		}
 		if (keyPressed(xi->user_input, "Tab") && (strlen(text->text)+1) < XUI_TEXT_MAX){
-			strcat(text->text, "\t");
+			strins(text->text, "\t", text->position);
+			text->position++;
 		}
 		if (keyPressed(xi->user_input, "Space") && (strlen(text->text)+1) < XUI_TEXT_MAX){
-			strcat(text->text, " ");
+			strins(text->text, " ", text->position);
+			text->position++;
 		}
 		if (keyPressed(xi->user_input, "Backspace") && (strlen(text->text)+1) < XUI_TEXT_MAX){
-			text->text[strlen(text->text)-1] = '\0';
+			if (text->position-1 >= 0){
+				strcut(text->text, text->position-1);
+				text->position--;
+			}
+		}
+		if (keyPressed(xi->user_input, "Left")){
+			if (text->position > 0){
+				text->position--;
+			}
+		}
+		if (keyPressed(xi->user_input, "Right")){
+			if (text->position < strlen(text->text)){
+				text->position ++;
+			}
 		}
 	}
 	if (!mousePressed(xi->user_input, 1)) return;
@@ -506,7 +539,6 @@ SYSTEM(xui_textentry_mutate){
 }
 
 SYSTEM(xui_textentry_render){
-	//TODO limited view window
 	ARG(xui_widget* widget, XUI_WIDGET_C);
 	ARG(xui_textentry* text, XUI_TEXTENTRY_C);
 	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
