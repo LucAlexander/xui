@@ -199,18 +199,26 @@ SYSTEM(xui_panel_render){
 	ARG(xui_panel* panel, XUI_PANEL_C);
 	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
 	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	uint32_t panel_w = panel->w;
+	uint32_t panel_h = panel->h;
+	if (window->w < widget->x+panel->w){
+		panel_w = window->w - widget->x;
+	}
+	if (window->h < widget->y+panel->h){
+		panel_h = window->h - widget->y;
+	}
+	if (window->w < widget->x || window->h < widget->y) return;
 	if (xi->project->window_manager.focused == window){
 		renderSetColor(xi->graphics, panel->r, panel->g, panel->b, panel->a);
-		drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel->w, panel->h, FILL);
+		drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel_w, panel_h, FILL);
 		renderSetColor(xi->graphics, panel->border_r, panel->border_g, panel->border_b, panel->border_a);
-		drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel->w, panel->h, OUTLINE);
 	}
 	else{
 		renderSetColor(xi->graphics, panel->r/XUI_UNFOCUSED_SCALEFACTOR, panel->g/XUI_UNFOCUSED_SCALEFACTOR, panel->b/XUI_UNFOCUSED_SCALEFACTOR, panel->a);
-		drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel->w, panel->h, FILL);
+		drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel_w, panel_h, FILL);
 		renderSetColor(xi->graphics, panel->border_r/XUI_UNFOCUSED_SCALEFACTOR, panel->border_g/XUI_UNFOCUSED_SCALEFACTOR, panel->border_b/XUI_UNFOCUSED_SCALEFACTOR, panel->border_a/XUI_UNFOCUSED_SCALEFACTOR);
-		drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel->w, panel->h, OUTLINE);
 	}
+	drawRect(xi->graphics, position->x+widget->x, position->y+widget->y, panel_w, panel_h, OUTLINE);
 	renderSetColor(xi->graphics, 0, 0, 0, 0);
 }
 
@@ -234,13 +242,22 @@ SYSTEM(xui_button_mutate){
 	v2 mouse = mousePos(xi->user_input);
 	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
 	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	uint32_t panel_w = panel->w;
+	uint32_t panel_h = panel->h;
+	if (window->w < widget->x+panel->w){
+		panel_w = window->w - widget->x;
+	}
+	if (window->h < widget->y+panel->h){
+		panel_h = window->h - widget->y;
+	}
+	if (window->w < widget->x || window->h < widget->y) return;
 	if (xi->project->window_manager.focused != window) return;
 	if (!mousePressed(xi->user_input, 1)) return;
 	if (
 		mouse.x < widget->x+position->x ||
 		mouse.y < widget->y+position->y ||
-		mouse.x > widget->x+position->x+panel->w ||
-		mouse.y > widget->y+position->y+panel->h
+		mouse.x > widget->x+position->x+panel_w ||
+		mouse.y > widget->y+position->y+panel_h
 	) return;
 	button->f(SYSTEM_ARGS);
 }
@@ -251,14 +268,24 @@ SYSTEM(xui_button_render){
 	ARG(xui_button* button, XUI_BUTTON_C);
 	v2 mouse = mousePos(xi->user_input);
 	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
+	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	uint32_t panel_w = panel->w;
+	uint32_t panel_h = panel->h;
+	if (window->w < widget->x+panel->w){
+		panel_w = window->w - widget->x;
+	}
+	if (window->h < widget->y+panel->h){
+		panel_h = window->h - widget->y;
+	}
+	if (window->w < widget->x || window->h < widget->y) return;
 	if (
 		mouse.x < widget->x+position->x ||
 		mouse.y < widget->y+position->y ||
-		mouse.x > widget->x+position->x+panel->w ||
-		mouse.y > widget->y+position->y+panel->h
+		mouse.x > widget->x+position->x+panel_w ||
+		mouse.y > widget->y+position->y+panel_h
 	) return;
 	renderSetColor(xi->graphics, button->hover_r, button->hover_g, button->hover_b, button->hover_a);
-	drawRect(xi->graphics, position->x+widget->x-1, position->y+widget->y+1, panel->w+2, panel->h+2, OUTLINE);
+	drawRect(xi->graphics, position->x+widget->x-1, position->y+widget->y+1, panel_w+2, panel_h+2, OUTLINE);
 	renderSetColor(xi->graphics, 0, 0, 0, 0);
 }
 
