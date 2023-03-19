@@ -11,7 +11,7 @@
 #define XUI_WINDOW_LAYER_UNFOCUSED 5
 #define XUI_WINDOW_LAYER_FOCUSED 10
 
-#define XUI_TEXT_MAX 256
+#define XUI_TEXT_MAX 64
 #define XUI_UNFOCUSED_SCALEFACTOR 1.2
 #define XUI_TAB_W 4
 
@@ -191,7 +191,7 @@ uint32_t spawn_xui_textentry(xi_utils* xi, uint32_t window, uint32_t x, uint32_t
 SYSTEM(xui_textentry_mutate);
 SYSTEM(xui_textentry_render);
 
-#define XUI_SHELL_LINE_COUNT 64
+#define XUI_SHELL_LINE_COUNT 32
 #define XUI_SHELL_TAB "    "
 
 typedef struct xui_shell{
@@ -204,6 +204,7 @@ typedef struct xui_shell{
 	uint8_t a;
 	uint8_t scroll;
 	char* (*f)(SYSTEM_ARG_REQUIREMENTS, struct xui_shell*);
+	void* system;
 }xui_shell;
 
 int32_t find_ch_index(char string[], char ch);
@@ -211,7 +212,7 @@ void xui_shell_new_line(xui_shell* shell);
 void xui_shell_buffer_output(xui_shell* shell, char* output);
 void xui_shell_scroll_to_current(xui_shell* shell, uint32_t visible_h);
 char* xui_shell_default_shell(SYSTEM_ARG_REQUIREMENTS, xui_shell*);
-uint32_t spawn_xui_shell(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t text_color, char* (*f)(SYSTEM_ARG_REQUIREMENTS, xui_shell*));
+uint32_t spawn_xui_shell(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t text_color, char* (*f)(SYSTEM_ARG_REQUIREMENTS, xui_shell*), void* system);
 SYSTEM(xui_shell_mutate);
 SYSTEM(xui_shell_render);
 

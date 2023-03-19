@@ -607,7 +607,7 @@ SYSTEM(xui_textentry_render){
 	renderSetColor(xi->graphics, 0, 0, 0, 0);
 }
 
-uint32_t spawn_xui_shell(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t text_color, char* (*f)(SYSTEM_ARG_REQUIREMENTS, xui_shell*)){
+uint32_t spawn_xui_shell(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t text_color, char* (*f)(SYSTEM_ARG_REQUIREMENTS, xui_shell*), void* system){
 	uint32_t entity = entity_create(xi->ecs);
 	xui_widget widget = {window, x,y, XUI_TEXT_LOCAL_DEPTH};
 	xui_color c = xui_color_decode(text_color);
@@ -615,7 +615,6 @@ uint32_t spawn_xui_shell(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, 
 	for (uint32_t i = 0;i<XUI_SHELL_LINE_COUNT;++i){
 		strcpy(shell.text[i], "");
 	}
-	shell.f = f;
 	shell.target = 0;
 	shell.position = 0;
 	shell.r = c.r;
@@ -623,6 +622,8 @@ uint32_t spawn_xui_shell(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, 
 	shell.b = c.b;
 	shell.a = c.a;
 	shell.scroll = 0;
+	shell.f = f;
+	shell.system = system;
 	component_add(xi->ecs, entity, XUI_WIDGET_C, &widget);
 	component_add(xi->ecs, entity, XUI_SHELL_C, &shell);
 	return entity;

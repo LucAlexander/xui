@@ -62,6 +62,6 @@ void xistart(xi_utils* xi){
 	spawn_xui_textentry(xi, float_window, (window_margain*2)+128, (window_margain*2)+128, 128, 128, text_color);
 	spawn_xui_panel(xi, float_window, 256, 256, 64, 64, widget_color, widget_outline_color);
 	spawn_xui_button(xi, float_window, 256, 128, 64, 64, widget_color, widget_outline_color, widget_outline_color, button_close_window);
-	spawn_xui_shell(xi, terminal, 8, 8, text_color, xui_shell_default_shell);
+	spawn_xui_shell(xi, terminal, 8, 8, text_color, xui_shell_default_shell, NULL);
 }
 
