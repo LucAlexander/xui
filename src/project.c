@@ -45,6 +45,7 @@ void xistart(xi_utils* xi){
 	uint32_t left_window = spawn_xui_window(xi, lx,ly, lw,lh, 0, 0, window_color);
 	uint32_t bottom_window = spawn_xui_window(xi, (screen_margain*2)+(WINDOW_W/4), WINDOW_H-(WINDOW_H/3)-screen_margain, WINDOW_W-(screen_margain*3)-WINDOW_W/4, WINDOW_H/3, 0, 0, window_color);
 	uint32_t float_window = spawn_xui_window(xi, (WINDOW_W/4)+screen_margain*2, screen_margain, (WINDOW_W-(WINDOW_W/4))-(screen_margain*3), (WINDOW_H-(WINDOW_H/3))-(screen_margain*3), 1, 1, float_window_color);
+	uint32_t terminal = spawn_xui_window(xi, 128, 128, (WINDOW_W-(WINDOW_W/4))-(screen_margain*3), (WINDOW_H-(WINDOW_H/3))-(screen_margain*3), 1, 1, float_window_color);
 	uint32_t bw = 80;
 	uint32_t bh = 48;
 	uint32_t button_margain_w = bh/2;
@@ -61,5 +62,6 @@ void xistart(xi_utils* xi){
 	spawn_xui_textentry(xi, float_window, (window_margain*2)+128, (window_margain*2)+128, 128, 128, text_color);
 	spawn_xui_panel(xi, float_window, 256, 256, 64, 64, widget_color, widget_outline_color);
 	spawn_xui_button(xi, float_window, 256, 128, 64, 64, widget_color, widget_outline_color, widget_outline_color, button_close_window);
+	spawn_xui_shell(xi, terminal, 8, 8, text_color, xui_shell_default_shell);
 }
 

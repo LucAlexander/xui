@@ -10,6 +10,7 @@
 	XUI_RADIO_C,\
 	XUI_SLIDER_C,\
 	XUI_TEXTENTRY_C,\
+	XUI_SHELL_C,\
 	COMPONENT_COUNT
 
 #define USER_COMPONENT_SIZES\
@@ -20,7 +21,8 @@
 	,260\
 	,17\
 	,28\
-	,273
+	,273\
+	,16400
 
 	
 

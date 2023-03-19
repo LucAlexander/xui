@@ -12,6 +12,7 @@ void register_xui_systems(program_state* state, xi_utils* xi){
 	system_add(state, system_init(xui_slider_mutate, 2, XUI_WIDGET_C, XUI_SLIDER_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_radio_mutate, 2, XUI_WIDGET_C, XUI_RADIO_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_textentry_mutate, 2, XUI_WIDGET_C, XUI_TEXTENTRY_C), XI_STATE_UPDATE);
+	system_add(state, system_init(xui_shell_mutate, 2, XUI_WIDGET_C, XUI_SHELL_C), XI_STATE_UPDATE);
 	system_add(state, system_init(xui_window_draw, 2, POSITION_C, XUI_WINDOW_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_panel_render, 2, XUI_WIDGET_C, XUI_PANEL_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_button_render, 3, XUI_WIDGET_C, XUI_PANEL_C, XUI_BUTTON_C), XI_STATE_RENDER);
@@ -20,6 +21,7 @@ void register_xui_systems(program_state* state, xi_utils* xi){
 	system_add(state, system_init(xui_radio_render, 2, XUI_WIDGET_C, XUI_RADIO_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_text_render, 2, XUI_WIDGET_C, XUI_TEXT_C), XI_STATE_RENDER);
 	system_add(state, system_init(xui_textentry_render, 2, XUI_WIDGET_C, XUI_TEXTENTRY_C), XI_STATE_RENDER);
+	system_add(state, system_init(xui_shell_render, 2, XUI_WIDGET_C, XUI_SHELL_C), XI_STATE_RENDER);
 }
 
 xui_color xui_color_decode(uint32_t color){
@@ -601,6 +603,168 @@ SYSTEM(xui_textentry_render){
 		render_y += ch;
 		render_x = start_x;
 		line = strtok_r(NULL, "\n", &context);
+	}
+	renderSetColor(xi->graphics, 0, 0, 0, 0);
+}
+
+uint32_t spawn_xui_shell(xi_utils* xi, uint32_t window, uint32_t x, uint32_t y, uint32_t text_color, char* (*f)(SYSTEM_ARG_REQUIREMENTS, xui_shell*)){
+	uint32_t entity = entity_create(xi->ecs);
+	xui_widget widget = {window, x,y, XUI_TEXT_LOCAL_DEPTH};
+	xui_color c = xui_color_decode(text_color);
+	xui_shell shell;
+	for (uint32_t i = 0;i<XUI_SHELL_LINE_COUNT;++i){
+		strcpy(shell.text[i], "");
+	}
+	shell.f = f;
+	shell.target = 0;
+	shell.position = 0;
+	shell.r = c.r;
+	shell.g = c.g;
+	shell.b = c.b;
+	shell.a = c.a;
+	shell.scroll = 0;
+	component_add(xi->ecs, entity, XUI_WIDGET_C, &widget);
+	component_add(xi->ecs, entity, XUI_SHELL_C, &shell);
+	return entity;
+}
+
+int32_t find_ch_index(char string[], char ch) {
+	int32_t i = 0;
+	while (string[i] != '\0') if (string[i++] == ch) return i;
+	return -1;
+}
+
+void xui_shell_new_line(xui_shell* shell){
+	if (shell->target < XUI_SHELL_LINE_COUNT-1){
+		shell->target ++;
+		return;
+	}
+	for (uint32_t i = 0;i<XUI_SHELL_LINE_COUNT-1;++i){
+		strcpy(shell->text[i], shell->text[i+1]);
+	}
+	strcpy(shell->text[XUI_SHELL_LINE_COUNT-1], "");
+}
+
+void xui_shell_buffer_output(xui_shell* shell, char* output){
+	char line[XUI_TEXT_MAX];
+	int32_t nl = find_ch_index(output, '\n');		
+	uint16_t p = 0;
+	while (nl != -1){
+		strncpy(line, output+p, nl);
+		line[nl-1] = '\0';
+		output[nl-1] = ' ';
+		strcat(shell->text[shell->target], line);
+		xui_shell_new_line(shell);
+		p += nl;
+		nl = find_ch_index(output+p, '\n');
+	}
+	free(output);
+} 
+
+char* xui_shell_default_shell(SYSTEM_ARG_REQUIREMENTS, xui_shell* shell){
+	char* output = malloc(16);
+	strcpy(output, "hi\n");
+	return output;
+}
+
+void xui_shell_scroll_to_current(xui_shell* shell, uint32_t visible_h){
+	if (shell->target - shell->scroll > visible_h){
+		shell->scroll = (shell->target-visible_h)+1;
+	}
+}
+
+SYSTEM(xui_shell_mutate){
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	ARG(xui_shell* shell, XUI_SHELL_C);
+	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	if (xi->project->window_manager.focused != window) return;
+	char keys[XUI_TEXTENTRY_ALLOWED_KEYS_LEN];
+	keystream(xi->user_input, keys, XUI_TEXTENTRY_ALLOWED_KEYS); 
+	uint32_t n = strlen(keys);
+	uint32_t text_h = getTextHeight(xi->graphics, "#");
+	uint32_t content_height = window->h - (widget->y*2);
+	uint32_t visible_h = (content_height/text_h);
+	char* text = shell->text[shell->target];
+	if (strcmp(keys, "") && ((strlen(text)+n) < XUI_TEXT_MAX)){
+		strins(text, keys, shell->position);
+		shell->position += n; 
+		xui_shell_scroll_to_current(shell, visible_h);
+	}
+	if (keyPressed(xi->user_input, "Return")){
+		shell->position = 0;
+		xui_shell_new_line(shell);
+		xui_shell_buffer_output(shell, shell->f(SYSTEM_ARGS, shell));
+		xui_shell_scroll_to_current(shell, visible_h);
+	}
+	if (keyPressed(xi->user_input, "Tab") && (strlen(text)+strlen(XUI_SHELL_TAB)) < XUI_TEXT_MAX){
+		strins(text, XUI_SHELL_TAB, shell->position);
+		shell->position++;
+	}
+	if (keyPressed(xi->user_input, "Space") && (strlen(text)+1) < XUI_TEXT_MAX){
+		strins(text, " ", shell->position);
+		shell->position++;
+	}
+	if (keyPressed(xi->user_input, "Backspace") && (strlen(text)+1) < XUI_TEXT_MAX){
+		if (shell->position-1 >= 0){
+			strcut(text, shell->position-1);
+			shell->position--;
+		}
+	}
+	if (keyPressed(xi->user_input, "Left")){
+		if (shell->position > 0){
+			shell->position--;
+		}
+	}
+	if (keyPressed(xi->user_input, "Right")){
+		if (shell->position < strlen(text)){
+			shell->position ++;
+		}
+	}
+	if (keyPressed(xi->user_input, "Up")){
+		if (shell->scroll > 0){
+			shell->scroll--;
+		}
+	}
+	if (keyPressed(xi->user_input, "Down")){
+		if ((shell->scroll <= shell->target-visible_h) && (shell->scroll < shell->target)){
+			shell->scroll ++;
+		}
+	}
+}
+
+SYSTEM(xui_shell_render){
+	ARG(xui_widget* widget, XUI_WIDGET_C);
+	ARG(xui_shell* shell, XUI_SHELL_C);
+	v2* position = component_get(xi->ecs, widget->window, POSITION_C);
+	xui_window* window = component_get(xi->ecs, widget->window, XUI_WINDOW_C);
+	uint32_t text_h = getTextHeight(xi->graphics, "#");
+	uint32_t content_height = window->h - (widget->x*2);
+	uint32_t content_width = window->w - (widget->y*2);
+	uint32_t visible_h = content_height/text_h;
+	uint32_t start_x = position->x + widget->x;
+	uint32_t start_y = position->y + widget->y;
+	if (xi->project->window_manager.focused == window){
+		renderSetColor(xi->graphics, shell->r, shell->g, shell->b, shell->a);
+	}
+	else{
+		renderSetColor(xi->graphics, shell->r/XUI_UNFOCUSED_SCALEFACTOR, shell->g/XUI_UNFOCUSED_SCALEFACTOR, shell->b/XUI_UNFOCUSED_SCALEFACTOR, shell->a);
+	}
+	for (uint32_t i = shell->scroll;i<shell->scroll+visible_h;++i){
+		char* line = shell->text[i];
+		uint32_t n = strlen(line);
+		if (getTextWidth(xi->graphics, line)>content_width){
+			char* segment = malloc(n+1);
+			strcpy(segment, line);
+			for (int32_t k = n-1;k>=0 && getTextWidth(xi->graphics, segment)>content_width;--k){
+				segment[k] = '\0';
+			}
+			drawText(xi->graphics, start_x, start_y, segment);
+			free(segment);
+		}
+		else{
+			drawText(xi->graphics, start_x, start_y, line);
+		}
+		start_y += text_h;
 	}
 	renderSetColor(xi->graphics, 0, 0, 0, 0);
 }
